@@ -4,13 +4,14 @@ from tkinter import messagebox
 import os
 import json
 import uuid
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class ZoomableCanvas(tk.Canvas):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
         self.bind("<MouseWheel>", self.zoom)
-        self.bind("<ButtonPress-1>", self.start_drag)
-        self.bind("<B1-Motion>", self.drag)
 
         self.scale_factor = 1.0
         self.offset_x = 0
@@ -106,76 +107,71 @@ def ask_for_project_details():
         messagebox.showinfo("Project Created", f"Project '{filename}' created successfully!")
         dialog.destroy()
         
-        create_canvas(filename, project_id, width, height)
+        create_graph(filename, project_id, width, height)
 
     ttk.Button(dialog, text="Submit", command=on_submit).grid(row=3, columnspan=2, pady=10)
 
-def create_canvas(project_name, project_id, width, height):
+def create_graph(project_name, project_id, width, height):
     for widget in root.winfo_children():
         widget.destroy()
 
     create_toolbar(root)
 
-    canvas_frame = ttk.Frame(root, style='Canvas.TFrame')
-    canvas_frame.pack(fill=tk.BOTH, expand=True)
+    graph_frame = ttk.Frame(root, style='Graph.TFrame')
+    graph_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
-    # Create scrollbars
-    h_scrollbar = ttk.Scrollbar(canvas_frame, orient=tk.HORIZONTAL)
-    h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+    figure = plt.figure()
+    axes = figure.add_subplot(1, 1, 1)
 
-    v_scrollbar = ttk.Scrollbar(canvas_frame, orient=tk.VERTICAL)
-    v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+    # Set the graph dimensions and aspect ratio
+    axes.set_xlim(0, width)
+    axes.set_ylim(0, height)
+    axes.set_aspect('equal')
 
-    # Create a zoomable canvas
-    canvas = ZoomableCanvas(canvas_frame, background="lightgreen", scrollregion=(0, 0, width, height))
-    canvas.pack(fill=tk.BOTH, expand=True)
+    # Set the grid and labels
+    axes.grid(True, linestyle='-', linewidth=1)
+    axes.set_xticks(range(0, width + 1, 50))
+    axes.set_yticks(range(0, height + 1, 50))
 
-    # Configure scrollbars
-    h_scrollbar.config(command=canvas.xview)
-    v_scrollbar.config(command=canvas.yview)
-    canvas.config(xscrollcommand=h_scrollbar.set, yscrollcommand=v_scrollbar.set)
+    # Create the matplotlib canvas
+    canvas = FigureCanvasTkAgg(figure, master=graph_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-    # Draw the grid
-    draw_grid(canvas, width, height)
+    # Update the graph when resized
+    def on_resize(event):
+        figure.tight_layout()
+        canvas.draw()
 
-    # Add a label to indicate the project name
-    project_label = ttk.Label(canvas_frame, text=f"Project: {project_name}", font=("Arial", 16), style='Canvas.TLabel')
+    canvas.get_tk_widget().bind('<Configure>', on_resize)
+
+    project_label = ttk.Label(graph_frame, text=f"Project: {project_name}", font=("Arial", 16), style='Canvas.TLabel')
     project_label.pack(pady=10)
 
-    # Add a label to display the UUID in small text
-    uuid_label = ttk.Label(canvas_frame, text=f"UUID: {project_id}", font=("Arial", 8), style='Canvas.TLabel')
+    uuid_label = ttk.Label(graph_frame, text=f"UUID: {project_id}", font=("Arial", 8), style='Canvas.TLabel')
     uuid_label.pack(pady=(0, 20))
 
-    # Add zoom buttons
-    zoom_in_button = ttk.Button(canvas_frame, text="Zoom In", command=lambda: canvas.scale("all", 0, 0, 1.1, 1.1))
-    zoom_in_button.pack(side=tk.LEFT, padx=10)
-
-    zoom_out_button = ttk.Button(canvas_frame, text="Zoom Out", command=lambda: canvas.scale("all", 0, 0, 0.9, 0.9))
-    zoom_out_button.pack(side=tk.LEFT, padx=10)
-
-def draw_grid(canvas, width, height):
-    """Draw a grid on the canvas like graph paper."""
-    # Draw vertical lines for major and minor grid lines
-    for i in range(0, width + 1, 10):  # Minor grid lines every 10 units
-        canvas.create_line(i, 0, i, height, fill="lightgray", dash=(2, 2))  # Minor lines
-    for i in range(0, width + 1, 50):  # Major grid lines every 50 units
-        canvas.create_line(i, 0, i, height, fill="gray")  # Major lines
     
-    # Draw horizontal lines for major and minor grid lines
-    for i in range(0, height + 1, 10):  # Minor grid lines every 10 units
-        canvas.create_line(0, i, width, i, fill="lightgray", dash=(2, 2))  # Minor lines
-    for i in range(0, height + 1, 50):  # Major grid lines every 50 units
-        canvas.create_line(0, i, width, i, fill="gray")  # Major lines
+def draw_grid(canvas, width, height):
+    # Draw vertical lines for major grid lines
+    for i in range(0, width + 1, 50):
+        canvas.create_line(i, height, i, 0, fill="gray")
+    
+    # Draw horizontal lines for major grid lines
+    for i in range(0, height + 1, 50):
+        canvas.create_line(0, i, width, i, fill="gray")
     
     # Draw axes
-    canvas.create_line(0, height // 2, width, height // 2, fill="black")  # X-axis
-    canvas.create_line(width // 2, 0, width // 2, height, fill="black")  # Y-axis
+    canvas.create_line(0, height, width, height, fill="black")  # X-axis
+    canvas.create_line(0, height, 0, 0, fill="black")  # Y-axis
 
-    # Draw axis labels
-    for i in range(0, width + 1, 50):  # Labels for every 50 units
-        canvas.create_text(i, height // 2 + 15, text=str(i), fill="black", anchor=tk.N)  # X labels
-    for i in range(0, height + 1, 50):  # Labels for every 50 units
-        canvas.create_text(width // 2 - 15, i, text=str(i), fill="black", anchor=tk.E)  # Y labels
+    # Draw X-axis labels
+    for i in range(0, width + 1, 50):
+        canvas.create_text(i, height + 15, text=str(i), fill="black", anchor=tk.N)
+    
+    # Draw Y-axis labels
+    for i in range(0, height + 1, 50):
+        canvas.create_text(-15, height - i, text=str(i), fill="black", anchor=tk.E)
 
 def on_new():
     ask_for_project_details()
