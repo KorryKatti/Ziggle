@@ -1,6 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox, simpledialog, Text
 import os
 import json
 import uuid
@@ -11,8 +10,9 @@ import threading
 from pathlib import Path
 import plotly.graph_objects as go
 import plotly.io as pio
-
-
+import http.server
+import socketserver
+import webbrowser
 
 def open_plot_in_webview(plot_path):
     """Open the Plotly graph in a pywebview window."""
@@ -20,6 +20,12 @@ def open_plot_in_webview(plot_path):
     webview.create_window('Interactive Plot', str(plot_path), width=800, height=600)
     webview.start()
 
+def get_json_path():
+    """Get the absolute path to the zigglescript_commands.json file"""
+    # Get the directory where the script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # Construct the path to the JSON file
+    return os.path.join(script_dir, 'zigglescript_commands.json')
 
 class ZoomPanCanvas(FigureCanvasTkAgg):
     def __init__(self, figure, master=None):
@@ -71,113 +77,189 @@ class ZoomPanCanvas(FigureCanvasTkAgg):
 
 from tkinter import Text, Button
 
+# Global Plotly figure instance
+fig = go.Figure()
+
+# Config for Plotly interactive grid
+config = {
+    'scrollZoom': True,
+    'displayModeBar': True,
+    'modeBarButtonsToAdd': ['zoom2d', 'pan2d', 'resetScale2d'],
+    'responsive': True
+}
+
+# Define command_input globally
+command_input = None
+
+PORT = 8000  # Localhost server port for HTML plot display
+
 def create_graph(root, project_name, project_id, width, height):
+    """Create a grid-based interactive Plotly graph."""
     for widget in root.winfo_children():
         widget.destroy()
-    
+
+    global fig
+    fig = go.Figure() 
+
     create_toolbar(root)
     graph_frame = ttk.Frame(root, style='Graph.TFrame')
     graph_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
-    # Create the Plotly figure (this remains the same)
-    fig = go.Figure()
-
-    # Add grid lines (same as before)
-    x_grid = list(range(0, width + 1, max(1, width // 50)))  # Adaptive grid density
+    # Add grid lines to figure
+    x_grid = list(range(0, width + 1, max(1, width // 50)))
     y_grid = list(range(0, height + 1, max(1, height // 50)))
-
     for x in x_grid:
         fig.add_shape(
-            type="line",
-            x0=x, x1=x,
-            y0=0, y1=height,
-            line=dict(color="lightgray", width=1, dash="dash")
+            type="line", x0=x, x1=x, y0=0, y1=height, line=dict(color="lightgray", width=1, dash="dash")
         )
-
     for y in y_grid:
         fig.add_shape(
-            type="line",
-            x0=0, x1=width,
-            y0=y, y1=y,
-            line=dict(color="lightgray", width=1, dash="dash")
+            type="line", x0=0, x1=width, y0=y, y1=y, line=dict(color="lightgray", width=1, dash="dash")
         )
 
     fig.update_layout(
         showlegend=False,
         plot_bgcolor='white',
-        xaxis=dict(
-            range=[0, width],
-            showgrid=False,
-            zeroline=True,
-            zerolinewidth=2,
-            zerolinecolor='black',
-            tickformat=',.0f'
-        ),
-        yaxis=dict(
-            range=[0, height],
-            showgrid=False,
-            zeroline=True,
-            zerolinewidth=2,
-            zerolinecolor='black',
-            tickformat=',.0f'
-        ),
+        xaxis=dict(range=[0, width], showgrid=False, zeroline=True, zerolinewidth=2, zerolinecolor='black', tickformat=',.0f'),
+        yaxis=dict(range=[0, height], showgrid=False, zeroline=True, zerolinewidth=2, zerolinecolor='black', tickformat=',.0f'),
         margin=dict(l=50, r=50, t=50, b=50),
         dragmode='pan'
     )
 
-    # Save the plot as HTML
+    # Temporary save of plot HTML
     temp_dir = Path.home() / "temp_plots"
     temp_dir.mkdir(exist_ok=True)
     plot_path = temp_dir / "grid_plot.html"
-    
-    config = {
-        'scrollZoom': True,
-        'displayModeBar': True,
-        'modeBarButtonsToAdd': ['zoom2d', 'pan2d', 'resetScale2d'],
-        'responsive': True
-    }
-    
-    pio.write_html(
-        fig, 
-        file=str(plot_path),
-        config=config,
-        include_plotlyjs='cdn',
-        full_html=True,
-        auto_open=False
-    )
-
-    # Project info labels
-    info_frame = ttk.Frame(graph_frame)
-    info_frame.pack(fill=tk.X, pady=5)
-    
-    project_label = ttk.Label(info_frame, text=f"Project: {project_name}", font=("Arial", 16))
-    project_label.pack(side=tk.LEFT, padx=10)
-    
-    uuid_label = ttk.Label(info_frame, text=f"UUID: {project_id}", font=("Arial", 8))
-    uuid_label.pack(side=tk.RIGHT, padx=10)
+    pio.write_html(fig, file=str(plot_path), config=None, include_plotlyjs='cdn', full_html=True)
 
     # Open interactive grid button
     open_button = ttk.Button(graph_frame, text="Open Interactive Grid", command=open_plot)
     open_button.pack(pady=10)
 
-    # Add preview label
-    preview_label = ttk.Label(graph_frame, text="Click 'Open Interactive Grid' to view the full interactive grid\nFeatures: Zoom, Pan, Reset, Save as PNG", justify=tk.CENTER)
-    preview_label.pack(pady=5)
-
-    # Command Input Section
-    input_frame = ttk.Frame(graph_frame)
+    # Command input area
+    input_frame = tk.Frame(root)
     input_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
     command_input = Text(input_frame, height=2, wrap="word")
     command_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
 
-    execute_button = Button(input_frame, text="Execute", command=lambda: process_command(command_input.get("1.0", "end-1c")))
+    execute_button = tk.Button(input_frame, text="Execute", command=submit_command)
     execute_button.pack(side=tk.RIGHT, padx=5, pady=5)
 
+def submit_command():
+    """Execute the ZiggleScript command entered by the user."""
+    command = command_input.get("1.0", tk.END).strip()
+    if command:
+        try:
+            process_zigglescript(command)  # This should be defined to process the command
+            command_input.delete("1.0", tk.END)  # Clear the input after execution
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to process command: {str(e)}")
+
+# def process_zigglescript(command):
+#     """Process ZiggleScript commands and create shapes."""
+#     # Remove the '<>' if present
+#     if command.endswith("<>"):
+#         command = command[:-2].strip()
+    
+#     try:
+#         # Load command definitions
+#         with open('zigglescript_commands.json', 'r') as json_file:
+#             command_data = json.load(json_file)
+#             command_definitions = command_data['commands']
+
+#         # Split the command parts
+#         command_parts = command.split()
+        
+#         # Check if command exists
+#         command_name = " ".join(command_parts[:2])  # "CREATE RECTANGLE"
+#         if command_name not in command_definitions:
+#             raise ValueError(f"Unknown command: {command_name}")
+
+#         # Get command definition
+#         cmd_def = command_definitions[command_name]
+        
+#         # Parse parameters
+#         params_end = -2 if "OPTIONS" in command_parts else len(command_parts)
+#         parameters = command_parts[2:params_end]
+        
+#         # Check if we have the correct number of required parameters
+#         required_params = [p for p in cmd_def['parameters'] if p['name'] != 'options']
+#         if len(parameters) != len(required_params):
+#             raise ValueError(f"Expected {len(required_params)} parameters, got {len(parameters)}")
+        
+#         # Parse options if present
+#         options = []
+#         if "OPTIONS" in command_parts:
+#             options_index = command_parts.index("OPTIONS")
+#             options_str = " ".join(command_parts[options_index + 1:])
+#             if options_str.startswith("{") and options_str.endswith("}"):
+#                 options = options_str[1:-1].split()
+        
+#         # Convert parameters to their proper types
+#         converted_params = []
+#         for i, param in enumerate(parameters):
+#             param_def = required_params[i]
+#             if param_def['type'] == 'float':
+#                 converted_params.append(float(param))
+#             else:
+#                 converted_params.append(param)
+        
+#         # Execute the appropriate function
+#         if cmd_def['function'] == 'create_rectangle':
+#             create_rectangle(*converted_params, options)
+#             messagebox.showinfo("Success", "Rectangle created successfully!")
+#         else:
+#             raise ValueError(f"Unknown function: {cmd_def['function']}")
+            
+#     except Exception as e:
+#         messagebox.showerror("Command Error", str(e))
+
+def create_rectangle(x1, x2, y1, y2, color, options):
+    """Create a rectangle shape in the Plotly figure."""
+    fig.add_shape(
+        type="rect",
+        x0=float(x1),
+        x1=float(x2),
+        y0=float(y1),
+        y1=float(y2),
+        line=dict(color=color),
+        fillcolor=color if "FILLED" in options else "rgba(255, 255, 255, 0)",
+    )
+    fig.show()  # Refresh the plot
+
+
 def process_command(command_text):
-    # This function will parse and execute the ZiggleScript commands
+    """Parse and execute the ZiggleScript commands."""
     print(f"Executing command: {command_text}")
-    # Add parsing and shape drawing logic here
+    
+    if not command_text.endswith("<>"):
+        messagebox.showerror("Command Error", "Commands must end with '<>'.")
+        return
+    
+    command = command_text[:-2].strip()  # Strip the ending marker
+    if command.startswith("DRAW RECTANGLE"):
+        try:
+            parts = command.split()
+            if len(parts) != 6:
+                raise ValueError("Invalid number of arguments. Expected: DRAW RECTANGLE x0 y0 x1 y1 color.")
+                
+            x0, y0, x1, y1, color = map(str.strip, parts[2:])
+            x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
+            
+            # Validate color (you might want a more robust check)
+            if color not in ['red', 'green', 'blue']:  # Example color check
+                raise ValueError(f"Invalid color: {color}. Supported colors: red, green, blue.")
+            
+            fig.add_shape(type="rect", x0=x0, y0=y0, x1=x1, y1=y1, fillcolor=color, line=dict(color="black"))
+            fig.show()  # Refresh the plot to display the rectangle
+        except ValueError as ve:
+            messagebox.showerror("Value Error", str(ve))
+        except Exception as e:
+            messagebox.showerror("Rectangle Error", f"Failed to draw rectangle: {e}")
+    else:
+        messagebox.showerror("Invalid Command", "Command not recognized.")
+
 
 def execute_command(command):
     """Execute the given ZiggleScript command."""
@@ -214,24 +296,36 @@ def execute_command(command):
 
 def submit_command():
     """Get the command from the input box and execute it."""
-    command = command_input.get()
+    global command_input
+    command = command_input.get("1.0", "end-1c").strip()
+    if command.endswith("<>"):
+        command = command[:-2].strip()  # Remove '<>' at the end
     execute_command(command)
-    command_input.delete(0, tk.END)  # Clear the input box
+    command_input.delete("1.0", "end")  # Clear the input box
 
-# Add command input box to your main window
-command_frame = ttk.Frame(root)
-command_frame.pack(pady=10)
 
-ttk.Label(command_frame, text="Enter Command:").pack(side=tk.LEFT)
-command_input = ttk.Entry(command_frame, width=50)
-command_input.pack(side=tk.LEFT, padx=5)
+import tkinter as tk
+from tkinter import simpledialog, messagebox, ttk
+import json
+import plotly.graph_objects as go
 
-submit_button = ttk.Button(command_frame, text="Submit", command=submit_command)
-submit_button.pack(side=tk.LEFT)
+# Assuming fig is a global variable or you can initialize it as needed
+fig = go.Figure()
 
-# Ensure the Plotly figure is accessible globally
-global fig
-fig = go.Figure()  # Create an initial empty figure
+def create_rectangle(x1, x2, y1, y2, color, options):
+    """Create a rectangle shape in the Plotly figure."""
+    fig.add_shape(
+        type="rect",
+        x0=float(x1),
+        x1=float(x2),
+        y0=float(y1),
+        y1=float(y2),
+        line=dict(color=color),
+        fillcolor=color if "FILLED" in options else "rgba(255, 255, 255, 0)",
+    )
+    fig.show()
+
+
 
 
 import http.server
@@ -242,56 +336,109 @@ import threading
 PORT = 8000  # Choose a port for localhost
 
 def start_http_server(directory):
-    """Start a simple HTTP server in a specified directory."""
+    """Start a simple HTTP server for serving HTML files."""
     handler = http.server.SimpleHTTPRequestHandler
-    os.chdir(directory)  # Set directory to serve files from
-
-    # Create and start the server
+    os.chdir(directory)
     with socketserver.TCPServer(("", PORT), handler) as httpd:
         print(f"Serving at http://localhost:{PORT}")
         httpd.serve_forever()
 
 def open_plot():
     """Open the plot on localhost server and in the default web browser."""
-    # Ensure the temp directory and plot exist
     temp_dir = Path.home() / "temp_plots"
     plot_path = temp_dir / "grid_plot.html"
-    
     if plot_path.exists():
-        # Start the server in a separate thread to keep the main app responsive
         threading.Thread(target=start_http_server, args=(temp_dir,), daemon=True).start()
-
-        # Open the plot in the default web browser via localhost
         webbrowser.open(f"http://localhost:{PORT}")
-        
-        # Show the ZiggleScript command popup after opening the browser
         open_command_popup()
     else:
-        messagebox.showerror("Error", "Plot not found. Please create a plot first.")
-
+        messagebox.showerror("Plot Error", "Plot not found. Create a plot first.")
 
 
 def open_command_popup():
-    """Create the command input popup using a Tkinter Toplevel window."""
+    """Create a popup for ZiggleScript command entry."""
     command_popup = tk.Toplevel(root)
     command_popup.title("Ziggle Command Center")
     command_popup.geometry("400x200")
-    
     ttk.Label(command_popup, text="Enter ZiggleScript Commands:", font=("Arial", 12)).pack(pady=10)
     
-    # Command input field
     command_input = tk.Text(command_popup, height=6, wrap="word")
     command_input.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
     
-    # Execute button to process commands
+    # Update this line to call process_zigglescript instead of process_command
     execute_button = ttk.Button(command_popup, text="Execute", 
-                                command=lambda: process_command(command_input.get("1.0", "end-1c")))
+                              command=lambda: process_zigglescript(command_input.get("1.0", "end-1c")))
     execute_button.pack(pady=10)
+    
+    command_popup.transient(root)
+    command_popup.grab_set()
+    command_popup.protocol("WM_DELETE_WINDOW", command_popup.destroy)
 
-    # Ensuring window behavior
-    command_popup.transient(root)  # Keep on top of main window
-    command_popup.grab_set()       # Block interactions with other windows until closed
-    command_popup.protocol("WM_DELETE_WINDOW", lambda: close_popup(command_popup))  # Handle window close
+def process_zigglescript(command):
+    """Process ZiggleScript commands and create shapes."""
+    print(f"Processing ZiggleScript command: {command}")
+    
+    # Remove the '<>' if present
+    if command.endswith("<>"):
+        command = command[:-2].strip()
+    
+    try:
+        # Use the absolute path to load the JSON file
+        json_path = get_json_path()
+        print(f"Looking for JSON file at: {json_path}")  # Debug print
+        
+        with open(json_path, 'r') as json_file:
+            command_data = json.load(json_file)
+            command_definitions = command_data['commands']
+
+        # Split the command parts
+        command_parts = command.split()
+        
+        # Get the command name (first two words)
+        command_name = " ".join(command_parts[:2])
+        
+        print(f"Command name: {command_name}")
+        print(f"Available commands: {list(command_definitions.keys())}")
+        
+        if command_name not in command_definitions:
+            raise ValueError(f"Unknown command: {command_name}")
+
+        # Get command definition
+        cmd_def = command_definitions[command_name]
+        
+        # Parse parameters
+        params_end = -2 if "OPTIONS" in command_parts else len(command_parts)
+        parameters = command_parts[2:params_end]
+        
+        # Parse options if present
+        options = set()
+        if "OPTIONS" in command_parts:
+            options_index = command_parts.index("OPTIONS")
+            options_str = " ".join(command_parts[options_index + 1:])
+            if options_str.startswith("{") and options_str.endswith("}"):
+                options = set(options_str[1:-1].split())
+
+        # Convert parameters to their proper types
+        converted_params = []
+        for i, param in enumerate(parameters):
+            param_def = cmd_def['parameters'][i]
+            if param_def['type'] == 'float':
+                converted_params.append(float(param))
+            else:
+                converted_params.append(param)
+
+        print(f"Parameters: {converted_params}")
+        print(f"Options: {options}")
+
+        # Call the create_rectangle function
+        if cmd_def['function'] == 'create_rectangle':
+            create_rectangle(*converted_params, options)
+            messagebox.showinfo("Success", "Rectangle created successfully!")
+        
+    except Exception as e:
+        print(f"Error processing command: {str(e)}")
+        messagebox.showerror("Command Error", str(e))
+
 
 def close_popup(popup):
     """Handle the close event of the popup window."""
@@ -312,7 +459,7 @@ def on_open():
 
 import tkinter.simpledialog as simpledialog
 
-def open_project():
+def open_project(root):
     """Open a project by selecting from a list of saved projects in index.json."""
     # Ensure the main project directory and index.json exist
     index_path = ensure_project_directory()
@@ -349,10 +496,11 @@ def open_project():
                 height = dimensions.get("height")
 
                 # Open the graph with the saved dimensions
-                create_graph(project_info['name'], project_info['id'], width, height)
+                create_graph(root, project_info['name'], project_info['id'], width, height)
 
             except (FileNotFoundError, ValueError) as e:
                 messagebox.showerror("Error", f"Failed to open project: {e}")
+
 
 # Update the "Open" button command in create_toolbar
 def create_toolbar(root):
@@ -375,7 +523,9 @@ def create_toolbar(root):
     open_button.pack(side=tk.LEFT)
 
 
+# Create a landing page with options for New and Open
 def create_landing_page(root):
+    """Create a landing page with options for New and Open."""
     landing_frame = ttk.Frame(root, style='Landing.TFrame')
     landing_frame.pack(pady=20, fill=tk.BOTH, expand=True)
 
@@ -385,10 +535,10 @@ def create_landing_page(root):
     button_frame = ttk.Frame(landing_frame, style='Landing.TFrame')
     button_frame.pack(pady=10)
 
-    new_button = ttk.Button(button_frame, text="New", command=lambda: on_new(root), style='Landing.TButton')
+    new_button = ttk.Button(button_frame, text="New", command=lambda: ask_for_project_details(root), style='Landing.TButton')
     new_button.pack(side=tk.LEFT, padx=10)
 
-    open_button = ttk.Button(button_frame, text="Open", command=lambda: on_open(root), style='Landing.TButton')
+    open_button = ttk.Button(button_frame, text="Open", command=open_project, style='Landing.TButton')
     open_button.pack(side=tk.LEFT, padx=10)
 
 
@@ -468,22 +618,10 @@ if __name__ == "__main__":
     root = tk.Tk()
     root.title("Welcome to Ziggle")
     root.geometry("1280x720")
-
     style = ttk.Style()
     style.theme_use('clam')
     style.configure('TFrame', background="#1F1D2D")
-    style.configure('Toolbar.TFrame', background="#1F1D2D")
-    style.configure('Landing.TFrame', background="#1F1D2D")
-    style.configure('Canvas.TFrame', background="lightgreen")
     style.configure('TButton', background="#5C4F7C", foreground="#E0DEF4", padding=5)
-    style.configure('Toolbar.TButton', background="#5C4F7C", foreground="#E0DEF4", padding=5)
-    style.configure('Landing.TButton', background="#5C4F7C", foreground="#E0DEF4", padding=5)
-    style.configure('Landing.TLabel', background="#1F1D2D", foreground="#E0DEF4")
-    style.configure('Canvas.TLabel', background="#E0DEF4", foreground="#1F1D2D")
 
-    root.tk_setPalette(background="#1F1D2D", foreground="#E0DEF4")
-
-    create_toolbar(root)
     create_landing_page(root)
-
     root.mainloop()
