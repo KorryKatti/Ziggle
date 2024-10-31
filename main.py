@@ -156,65 +156,6 @@ def submit_command():
         except Exception as e:
             messagebox.showerror("Error", f"Failed to process command: {str(e)}")
 
-# def process_zigglescript(command):
-#     """Process ZiggleScript commands and create shapes."""
-#     # Remove the '<>' if present
-#     if command.endswith("<>"):
-#         command = command[:-2].strip()
-    
-#     try:
-#         # Load command definitions
-#         with open('zigglescript_commands.json', 'r') as json_file:
-#             command_data = json.load(json_file)
-#             command_definitions = command_data['commands']
-
-#         # Split the command parts
-#         command_parts = command.split()
-        
-#         # Check if command exists
-#         command_name = " ".join(command_parts[:2])  # "CREATE RECTANGLE"
-#         if command_name not in command_definitions:
-#             raise ValueError(f"Unknown command: {command_name}")
-
-#         # Get command definition
-#         cmd_def = command_definitions[command_name]
-        
-#         # Parse parameters
-#         params_end = -2 if "OPTIONS" in command_parts else len(command_parts)
-#         parameters = command_parts[2:params_end]
-        
-#         # Check if we have the correct number of required parameters
-#         required_params = [p for p in cmd_def['parameters'] if p['name'] != 'options']
-#         if len(parameters) != len(required_params):
-#             raise ValueError(f"Expected {len(required_params)} parameters, got {len(parameters)}")
-        
-#         # Parse options if present
-#         options = []
-#         if "OPTIONS" in command_parts:
-#             options_index = command_parts.index("OPTIONS")
-#             options_str = " ".join(command_parts[options_index + 1:])
-#             if options_str.startswith("{") and options_str.endswith("}"):
-#                 options = options_str[1:-1].split()
-        
-#         # Convert parameters to their proper types
-#         converted_params = []
-#         for i, param in enumerate(parameters):
-#             param_def = required_params[i]
-#             if param_def['type'] == 'float':
-#                 converted_params.append(float(param))
-#             else:
-#                 converted_params.append(param)
-        
-#         # Execute the appropriate function
-#         if cmd_def['function'] == 'create_rectangle':
-#             create_rectangle(*converted_params, options)
-#             messagebox.showinfo("Success", "Rectangle created successfully!")
-#         else:
-#             raise ValueError(f"Unknown function: {cmd_def['function']}")
-            
-#     except Exception as e:
-#         messagebox.showerror("Command Error", str(e))
-
 def create_rectangle(x1, x2, y1, y2, color, options):
     """Create a rectangle shape in the Plotly figure."""
     fig.add_shape(
@@ -365,6 +306,16 @@ def open_plot():
         messagebox.showerror("Plot Error", "Plot not found. Create a plot first.")
 
 
+def save_command(command, project_name):
+    # Define the file path
+    filepath = f"project/{project_name}/commands.ziggle"
+    # Ensure the project directory exists
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    # Append the command to the file
+    with open(filepath, 'a') as file:
+        file.write(command + '\n')
+
+
 def open_command_popup():
     """Create a popup for ZiggleScript command entry."""
     command_popup = tk.Toplevel(root)
@@ -384,77 +335,66 @@ def open_command_popup():
     command_popup.grab_set()
     command_popup.protocol("WM_DELETE_WINDOW", command_popup.destroy)
 
-def process_zigglescript(command):
-    """Process ZiggleScript commands and create shapes."""
-    print(f"Processing ZiggleScript command: {command}")
+def process_zigglescript(commands):
+    """Process multiple ZiggleScript commands in one go."""
+    commands = commands.split("<>")
+    commands = [cmd.strip() for cmd in commands if cmd.strip()]  # Clean up command list
 
-    # Remove the '<>' if present
-    if command.endswith("<>"):
-        command = command[:-2].strip()
-    
-    try:
-        # Use the absolute path to load the JSON file
-        json_path = get_json_path()
-        print(f"Looking for JSON file at: {json_path}")  # Debug print
-        
-        with open(json_path, 'r') as json_file:
-            command_data = json.load(json_file)
-            command_definitions = command_data['commands']
+    errors = []
+    for command in commands:
+        try:
+            # Remove the '<>' if present at the end (already split on <> so should be clean)
+            command = command.strip()
+            print(f"Processing ZiggleScript command: {command}")
+            
+            # Load command definitions from JSON file as before...
+            json_path = get_json_path()
+            with open(json_path, 'r') as json_file:
+                command_data = json.load(json_file)
+                command_definitions = command_data['commands']
+                
+            command_parts = command.split()
+            command_name = " ".join(command_parts[:2])
 
-        # Split the command parts
-        command_parts = command.split()
-        
-        # Get the command name (first two words)
-        command_name = " ".join(command_parts[:2])
-        
-        print(f"Command name: {command_name}")
-        print(f"Available commands: {list(command_definitions.keys())}")
-        
-        if command_name not in command_definitions:
-            raise ValueError(f"Unknown command: {command_name}")
+            if command_name not in command_definitions:
+                raise ValueError(f"Unknown command: {command_name}")
 
-        # Get command definition
-        cmd_def = command_definitions[command_name]
-        
-        # Parse parameters
-        params_end = -2 if "OPTIONS" in command_parts else len(command_parts)
-        parameters = command_parts[2:params_end]
-        
-        # Parse options if present
-        options = set()
-        if "OPTIONS" in command_parts:
-            options_index = command_parts.index("OPTIONS")
-            options_str = " ".join(command_parts[options_index + 1:])
-            if options_str.startswith("{") and options_str.endswith("}"):
-                options = set(options_str[1:-1].split())
+            # Process parameters as before...
+            cmd_def = command_definitions[command_name]
+            params_end = -2 if "OPTIONS" in command_parts else len(command_parts)
+            parameters = command_parts[2:params_end]
+            options = set()
 
-        # Convert parameters to their proper types
-        converted_params = []
-        for i, param in enumerate(parameters):
-            param_def = cmd_def['parameters'][i]
-            if param_def['type'] == 'float':
-                converted_params.append(float(param))
-            else:
-                converted_params.append(param)
+            # Handle options if present...
+            if "OPTIONS" in command_parts:
+                options_index = command_parts.index("OPTIONS")
+                options_str = " ".join(command_parts[options_index + 1:])
+                if options_str.startswith("{") and options_str.endswith("}"):
+                    options = set(options_str[1:-1].split())
 
-        print(f"Parameters: {converted_params}")
-        print(f"Options: {options}")
+            # Convert parameters
+            converted_params = []
+            for i, param in enumerate(parameters):
+                param_def = cmd_def['parameters'][i]
+                if param_def['type'] == 'float':
+                    converted_params.append(float(param))
+                else:
+                    converted_params.append(param)
 
-        # Call the create_rectangle function
-        if cmd_def['function'] == 'create_rectangle':
-            create_rectangle(*converted_params, options)
-            messagebox.showinfo("Success", "Rectangle created successfully!")
-        
-        # Call the create_line function
-        elif cmd_def['function'] == 'create_line':
-            create_line(*converted_params, options)
-            messagebox.showinfo("Success", "Line created successfully!")
-        
-    except Exception as e:
-        print(f"Error processing command: {str(e)}")
-        messagebox.showerror("Command Error", str(e))
+            # Call the function
+            if cmd_def['function'] == 'create_rectangle':
+                create_rectangle(*converted_params, options)
+            elif cmd_def['function'] == 'create_line':
+                create_line(*converted_params, options)
+                
+        except Exception as e:
+            errors.append(f"Error with command '{command}': {str(e)}")
 
-
+    # Summary message after all commands processed
+    if errors:
+        messagebox.showerror("Execution Errors", "\n".join(errors))
+    else:
+        messagebox.showinfo("Success", "All commands executed successfully!")
 
 def close_popup(popup):
     """Handle the close event of the popup window."""
