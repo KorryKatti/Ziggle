@@ -21,18 +21,6 @@ def open_plot_in_webview(plot_path):
     webview.start()
 
 
-def open_plot():
-    """Open the plot in a pywebview window."""
-    # Ensure the temp directory exists
-    temp_dir = Path.home() / "temp_plots"
-    plot_path = temp_dir / "grid_plot.html"
-    
-    if plot_path.exists():
-        # Open the webview directly without threading
-        open_plot_in_webview(plot_path)
-    else:
-        messagebox.showerror("Error", "Plot not found. Please create a plot first.")
-
 class ZoomPanCanvas(FigureCanvasTkAgg):
     def __init__(self, figure, master=None):
         super().__init__(figure, master=master)
@@ -81,24 +69,23 @@ class ZoomPanCanvas(FigureCanvasTkAgg):
         self._drag_data["y"] = event.y
         self.draw()
 
-def create_graph(project_name, project_id, width, height):
-    # Clear any previous widgets
+from tkinter import Text, Button
+
+def create_graph(root, project_name, project_id, width, height):
     for widget in root.winfo_children():
         widget.destroy()
-
-    # Create toolbar and frame
+    
     create_toolbar(root)
     graph_frame = ttk.Frame(root, style='Graph.TFrame')
     graph_frame.pack(fill=tk.BOTH, expand=True, pady=10)
 
-    # Create the Plotly figure
+    # Create the Plotly figure (this remains the same)
     fig = go.Figure()
 
-    # Add the main grid as a scatter plot with no markers
+    # Add grid lines (same as before)
     x_grid = list(range(0, width + 1, max(1, width // 50)))  # Adaptive grid density
     y_grid = list(range(0, height + 1, max(1, height // 50)))
 
-    # Add vertical grid lines
     for x in x_grid:
         fig.add_shape(
             type="line",
@@ -107,7 +94,6 @@ def create_graph(project_name, project_id, width, height):
             line=dict(color="lightgray", width=1, dash="dash")
         )
 
-    # Add horizontal grid lines
     for y in y_grid:
         fig.add_shape(
             type="line",
@@ -116,7 +102,6 @@ def create_graph(project_name, project_id, width, height):
             line=dict(color="lightgray", width=1, dash="dash")
         )
 
-    # Configure the layout
     fig.update_layout(
         showlegend=False,
         plot_bgcolor='white',
@@ -126,7 +111,7 @@ def create_graph(project_name, project_id, width, height):
             zeroline=True,
             zerolinewidth=2,
             zerolinecolor='black',
-            tickformat=',.0f'  # No scientific notation
+            tickformat=',.0f'
         ),
         yaxis=dict(
             range=[0, height],
@@ -134,10 +119,10 @@ def create_graph(project_name, project_id, width, height):
             zeroline=True,
             zerolinewidth=2,
             zerolinecolor='black',
-            tickformat=',.0f'  # No scientific notation
+            tickformat=',.0f'
         ),
         margin=dict(l=50, r=50, t=50, b=50),
-        dragmode='pan'  # Enable panning
+        dragmode='pan'
     )
 
     # Save the plot as HTML
@@ -161,29 +146,158 @@ def create_graph(project_name, project_id, width, height):
         auto_open=False
     )
 
-    # Create a label frame for project info
+    # Project info labels
     info_frame = ttk.Frame(graph_frame)
     info_frame.pack(fill=tk.X, pady=5)
     
-    project_label = ttk.Label(info_frame, text=f"Project: {project_name}", 
-                             font=("Arial", 16))
+    project_label = ttk.Label(info_frame, text=f"Project: {project_name}", font=("Arial", 16))
     project_label.pack(side=tk.LEFT, padx=10)
     
-    uuid_label = ttk.Label(info_frame, text=f"UUID: {project_id}", 
-                          font=("Arial", 8))
+    uuid_label = ttk.Label(info_frame, text=f"UUID: {project_id}", font=("Arial", 8))
     uuid_label.pack(side=tk.RIGHT, padx=10)
 
-    # Create button to open the plot in pywebview
-    open_button = ttk.Button(graph_frame, text="Open Interactive Grid", 
-                            command=open_plot)
+    # Open interactive grid button
+    open_button = ttk.Button(graph_frame, text="Open Interactive Grid", command=open_plot)
     open_button.pack(pady=10)
 
-    # Optional: Add preview label
-    preview_label = ttk.Label(graph_frame, 
-                             text="Click 'Open Interactive Grid' to view the full interactive grid\n" +
-                                  "Features: Zoom, Pan, Reset, Save as PNG",
-                             justify=tk.CENTER)
+    # Add preview label
+    preview_label = ttk.Label(graph_frame, text="Click 'Open Interactive Grid' to view the full interactive grid\nFeatures: Zoom, Pan, Reset, Save as PNG", justify=tk.CENTER)
     preview_label.pack(pady=5)
+
+    # Command Input Section
+    input_frame = ttk.Frame(graph_frame)
+    input_frame.pack(side=tk.BOTTOM, fill=tk.X)
+
+    command_input = Text(input_frame, height=2, wrap="word")
+    command_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+
+    execute_button = Button(input_frame, text="Execute", command=lambda: process_command(command_input.get("1.0", "end-1c")))
+    execute_button.pack(side=tk.RIGHT, padx=5, pady=5)
+
+def process_command(command_text):
+    # This function will parse and execute the ZiggleScript commands
+    print(f"Executing command: {command_text}")
+    # Add parsing and shape drawing logic here
+
+def execute_command(command):
+    """Execute the given ZiggleScript command."""
+    # Check if the command ends with '<>'
+    if not command.endswith('<>'):
+        messagebox.showerror("Invalid Command", "Command must end with '<>'.")
+        return
+
+    command = command[:-2].strip()  # Remove '<>' and any trailing spaces
+
+    # Split the command and check if it's for drawing a rectangle
+    if command.startswith("DRAW RECTANGLE"):
+        try:
+            parts = command.split()  # Split the command into parts
+            x0, y0, x1, y1, color = map(str.strip, parts[2:])  # Extract coordinates and color
+            
+            # Convert coordinates to integers
+            x0, y0, x1, y1 = int(x0), int(y0), int(x1), int(y1)
+            
+            # Draw the rectangle on the Plotly figure
+            fig.add_shape(
+                type="rect",
+                x0=x0, y0=y0,
+                x1=x1, y1=y1,
+                fillcolor=color,
+                line=dict(color="black")
+            )
+            fig.show()  # Refresh the plot to show the new shape
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to draw rectangle: {e}")
+    else:
+        messagebox.showerror("Invalid Command", "Unknown command.")
+
+def submit_command():
+    """Get the command from the input box and execute it."""
+    command = command_input.get()
+    execute_command(command)
+    command_input.delete(0, tk.END)  # Clear the input box
+
+# Add command input box to your main window
+command_frame = ttk.Frame(root)
+command_frame.pack(pady=10)
+
+ttk.Label(command_frame, text="Enter Command:").pack(side=tk.LEFT)
+command_input = ttk.Entry(command_frame, width=50)
+command_input.pack(side=tk.LEFT, padx=5)
+
+submit_button = ttk.Button(command_frame, text="Submit", command=submit_command)
+submit_button.pack(side=tk.LEFT)
+
+# Ensure the Plotly figure is accessible globally
+global fig
+fig = go.Figure()  # Create an initial empty figure
+
+
+import http.server
+import socketserver
+import webbrowser
+import threading
+
+PORT = 8000  # Choose a port for localhost
+
+def start_http_server(directory):
+    """Start a simple HTTP server in a specified directory."""
+    handler = http.server.SimpleHTTPRequestHandler
+    os.chdir(directory)  # Set directory to serve files from
+
+    # Create and start the server
+    with socketserver.TCPServer(("", PORT), handler) as httpd:
+        print(f"Serving at http://localhost:{PORT}")
+        httpd.serve_forever()
+
+def open_plot():
+    """Open the plot on localhost server and in the default web browser."""
+    # Ensure the temp directory and plot exist
+    temp_dir = Path.home() / "temp_plots"
+    plot_path = temp_dir / "grid_plot.html"
+    
+    if plot_path.exists():
+        # Start the server in a separate thread to keep the main app responsive
+        threading.Thread(target=start_http_server, args=(temp_dir,), daemon=True).start()
+
+        # Open the plot in the default web browser via localhost
+        webbrowser.open(f"http://localhost:{PORT}")
+        
+        # Show the ZiggleScript command popup after opening the browser
+        open_command_popup()
+    else:
+        messagebox.showerror("Error", "Plot not found. Please create a plot first.")
+
+
+
+def open_command_popup():
+    """Create the command input popup using a Tkinter Toplevel window."""
+    command_popup = tk.Toplevel(root)
+    command_popup.title("Ziggle Command Center")
+    command_popup.geometry("400x200")
+    
+    ttk.Label(command_popup, text="Enter ZiggleScript Commands:", font=("Arial", 12)).pack(pady=10)
+    
+    # Command input field
+    command_input = tk.Text(command_popup, height=6, wrap="word")
+    command_input.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+    
+    # Execute button to process commands
+    execute_button = ttk.Button(command_popup, text="Execute", 
+                                command=lambda: process_command(command_input.get("1.0", "end-1c")))
+    execute_button.pack(pady=10)
+
+    # Ensuring window behavior
+    command_popup.transient(root)  # Keep on top of main window
+    command_popup.grab_set()       # Block interactions with other windows until closed
+    command_popup.protocol("WM_DELETE_WINDOW", lambda: close_popup(command_popup))  # Handle window close
+
+def close_popup(popup):
+    """Handle the close event of the popup window."""
+    popup.grab_release()
+    popup.destroy()
+
 
 def update_grid(width, height):
     """Update the grid dimensions"""
@@ -257,8 +371,7 @@ def create_toolbar(root):
     contribute_button = ttk.Button(toolbar, text="Contribute", command=lambda: print("Contribute button clicked"), style='Toolbar.TButton')
     contribute_button.pack(side=tk.LEFT)
 
-    # Connect the Open button to open_project
-    open_button = ttk.Button(toolbar, text="Open", command=open_project, style='Toolbar.TButton')
+    open_button = ttk.Button(toolbar, text="Open", command=lambda: open_project(root), style='Toolbar.TButton')
     open_button.pack(side=tk.LEFT)
 
 
@@ -272,10 +385,10 @@ def create_landing_page(root):
     button_frame = ttk.Frame(landing_frame, style='Landing.TFrame')
     button_frame.pack(pady=10)
 
-    new_button = ttk.Button(button_frame, text="New", command=on_new, style='Landing.TButton')
+    new_button = ttk.Button(button_frame, text="New", command=lambda: on_new(root), style='Landing.TButton')
     new_button.pack(side=tk.LEFT, padx=10)
 
-    open_button = ttk.Button(button_frame, text="Open", command=on_open, style='Landing.TButton')
+    open_button = ttk.Button(button_frame, text="Open", command=lambda: on_open(root), style='Landing.TButton')
     open_button.pack(side=tk.LEFT, padx=10)
 
 
@@ -292,11 +405,10 @@ def ensure_project_directory():
 
     return index_path
 
-def ask_for_project_details():
-    """Prompt user for project dimensions and filename, then save project details."""
+def ask_for_project_details(root):
     dialog = tk.Toplevel(root)
     dialog.title("New Project")
-    
+
     ttk.Label(dialog, text="Enter Width (mm):").grid(row=0, column=0, padx=10, pady=10)
     width_entry = ttk.Entry(dialog)
     width_entry.grid(row=0, column=1, padx=10, pady=10)
@@ -324,12 +436,9 @@ def ask_for_project_details():
             return
 
         project_id = str(uuid.uuid4())
-
-        # Create a directory for the new project
         project_dir = os.path.join("project", filename)
         os.makedirs(project_dir, exist_ok=True)
 
-        # Update the main project index
         index_path = ensure_project_directory()
         with open(index_path, 'r+') as index_file:
             projects = json.load(index_file)
@@ -337,7 +446,6 @@ def ask_for_project_details():
             index_file.seek(0)
             json.dump(projects, index_file, indent=4)
 
-        # Save project info and dimensions in the project directory
         info_path = os.path.join(project_dir, "info.json")
         with open(info_path, 'w') as info_file:
             json.dump({"name": filename, "id": project_id}, info_file, indent=4)
@@ -350,12 +458,12 @@ def ask_for_project_details():
         messagebox.showinfo("Project Created", f"Project '{filename}' created successfully!")
         dialog.destroy()
         
-        # Call create_graph to open the canvas and display the project
-        create_graph(filename, project_id, width, height)
+        create_graph(root, filename, project_id, width, height)
 
     ttk.Button(dialog, text="Submit", command=on_submit).grid(row=3, columnspan=2, pady=10)
 
 
+# Main application entry point
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Welcome to Ziggle")
