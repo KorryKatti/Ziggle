@@ -133,7 +133,7 @@ def create_graph(root, project_name, project_id, width, height):
     pio.write_html(fig, file=str(plot_path), config=None, include_plotlyjs='cdn', full_html=True)
 
     # Open interactive grid button
-    open_button = ttk.Button(graph_frame, text="Open Interactive Grid", command=open_plot)
+    open_button = ttk.Button(graph_frame, text="Open Interactive Grid", command=open_plot(project_name))
     open_button.pack(pady=10)
 
     # Command input area
@@ -294,14 +294,14 @@ def start_http_server(directory):
         print(f"Serving at http://localhost:{PORT}")
         httpd.serve_forever()
 
-def open_plot():
+def open_plot(project_name):
     """Open the plot on localhost server and in the default web browser."""
     temp_dir = Path.home() / "temp_plots"
     plot_path = temp_dir / "grid_plot.html"
     if plot_path.exists():
         threading.Thread(target=start_http_server, args=(temp_dir,), daemon=True).start()
         webbrowser.open(f"http://localhost:{PORT}")
-        open_command_popup()
+        open_command_popup(project_name)
     else:
         messagebox.showerror("Plot Error", "Plot not found. Create a plot first.")
 
@@ -316,7 +316,7 @@ def save_command(command, project_name):
         file.write(command + '\n')
 
 
-def open_command_popup():
+def open_command_popup(project_name):
     """Create a popup for ZiggleScript command entry."""
     command_popup = tk.Toplevel(root)
     command_popup.title("Ziggle Command Center")
@@ -326,16 +326,17 @@ def open_command_popup():
     command_input = tk.Text(command_popup, height=6, wrap="word")
     command_input.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
     
-    # Update this line to call process_zigglescript instead of process_command
+    # Update this line to call process_zigglescript with project_name
     execute_button = ttk.Button(command_popup, text="Execute", 
-                              command=lambda: process_zigglescript(command_input.get("1.0", "end-1c")))
+                              command=lambda: process_zigglescript(command_input.get("1.0", "end-1c"), project_name))
     execute_button.pack(pady=10)
     
     command_popup.transient(root)
     command_popup.grab_set()
-    command_popup.protocol("WM_DELETE_WINDOW", command_popup.destroy)
+    command_popup.protocol("WM_DELETE_WINDOW", lambda: close_popup(command_popup))
 
-def process_zigglescript(commands):
+
+def process_zigglescript(commands, project_name):
     """Process multiple ZiggleScript commands in one go."""
     commands = commands.split("<>")
     commands = [cmd.strip() for cmd in commands if cmd.strip()]  # Clean up command list
@@ -386,7 +387,10 @@ def process_zigglescript(commands):
                 create_rectangle(*converted_params, options)
             elif cmd_def['function'] == 'create_line':
                 create_line(*converted_params, options)
-                
+
+            # Save the command after successful execution
+            save_command(command, project_name)
+
         except Exception as e:
             errors.append(f"Error with command '{command}': {str(e)}")
 
@@ -395,6 +399,10 @@ def process_zigglescript(commands):
         messagebox.showerror("Execution Errors", "\n".join(errors))
     else:
         messagebox.showinfo("Success", "All commands executed successfully!")
+
+# CREATE RECTANGLE 2 3 1 4 BROWN<>CREATE RECTANGLE 1 4 4 5 GREEN<>CREATE LINE 2.5 5 2 6 GREEN<>CREATE LINE 2.5 5 3 6 GREEN<>
+
+
 
 def close_popup(popup):
     """Handle the close event of the popup window."""
