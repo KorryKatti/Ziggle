@@ -227,6 +227,16 @@ def create_rectangle(x1, x2, y1, y2, color, options):
         fillcolor=color if "FILLED" in options else "rgba(255, 255, 255, 0)",
     )
     fig.show()  # Refresh the plot
+def create_line(x1, y1, x2, y2, color, options):
+    fig.add_shape(
+        type="line",
+        x0=x1,
+        y0=y1,
+        x1=x2,
+        y1=y2,
+        line=dict(color=color, width=2)
+    )
+    fig.show()
 
 
 def process_command(command_text):
@@ -377,7 +387,7 @@ def open_command_popup():
 def process_zigglescript(command):
     """Process ZiggleScript commands and create shapes."""
     print(f"Processing ZiggleScript command: {command}")
-    
+
     # Remove the '<>' if present
     if command.endswith("<>"):
         command = command[:-2].strip()
@@ -435,9 +445,15 @@ def process_zigglescript(command):
             create_rectangle(*converted_params, options)
             messagebox.showinfo("Success", "Rectangle created successfully!")
         
+        # Call the create_line function
+        elif cmd_def['function'] == 'create_line':
+            create_line(*converted_params, options)
+            messagebox.showinfo("Success", "Line created successfully!")
+        
     except Exception as e:
         print(f"Error processing command: {str(e)}")
         messagebox.showerror("Command Error", str(e))
+
 
 
 def close_popup(popup):

@@ -1,33 +1,62 @@
 {
     "commands": {
-        "CREATE RECTANGLE": {
-            "parameters": [
-                {
-                    "name": "x1",
-                    "type": "float"
-                },
-                {
-                    "name": "x2",
-                    "type": "float"
-                },
-                {
-                    "name": "y1",
-                    "type": "float"
-                },
-                {
-                    "name": "y2",
-                    "type": "float"
-                },
-                {
-                    "name": "color",
-                    "type": "string"
-                },
-                {
-                    "name": "options",
-                    "type": "string"
-                }
-            ],
-            "function": "create_rectangle"
-        }
+      "CREATE RECTANGLE": {
+        "parameters": [
+          {
+            "name": "x1",
+            "type": "float"
+          },
+          {
+            "name": "y1",
+            "type": "float"
+          },
+          {
+            "name": "x2",
+            "type": "float"
+          },
+          {
+            "name": "y2",
+            "type": "float"
+          },
+          {
+            "name": "color",
+            "type": "string"
+          },
+          {
+            "name": "options",
+            "type": "string"
+          }
+        ],
+        "function": "create_rectangle"
+      },
+      "CREATE LINE": {
+        "parameters": [
+          {
+            "name": "x1",
+            "type": "float"
+          },
+          {
+            "name": "y1",
+            "type": "float"
+          },
+          {
+            "name": "x2",
+            "type": "float"
+          },
+          {
+            "name": "y2",
+            "type": "float"
+          },
+          {
+            "name": "color",
+            "type": "string"
+          },
+          {
+            "name": "options",
+            "type": "string"
+          }
+        ],
+        "function": "create_line"
+      }
     }
-}
+  }
