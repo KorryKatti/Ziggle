@@ -156,18 +156,46 @@ def submit_command():
         except Exception as e:
             messagebox.showerror("Error", f"Failed to process command: {str(e)}")
 
-def create_rectangle(x1, x2, y1, y2, color, options):
-    """Create a rectangle shape in the Plotly figure."""
+
+
+def create_text(x1, x2, y1, y2, text, color, font_size):
+    # Calculate position and size based on coordinates
+    x_pos = (x1 + x2) / 2
+    y_pos = (y1 + y2) / 2
+
+    # Add the text annotation to the Plotly graph
+    fig.add_annotation(
+        x=x_pos,
+        y=y_pos,
+        text=text,
+        showarrow=False,
+        font=dict(
+            size=font_size,
+            color=color,
+        ),
+        xanchor='center',
+        yanchor='middle',
+    )
+
+    fig.show()
+
+
+def create_rectangle(*args):
+    x1, x2, y1, y2, color, *options = args
+    fillcolor = color if options and str(options[0]).upper() == "FILLED" else "rgba(255, 255, 255, 0)"
+    line_width = 2 if fillcolor != color else 1
     fig.add_shape(
         type="rect",
         x0=float(x1),
         x1=float(x2),
         y0=float(y1),
         y1=float(y2),
-        line=dict(color=color),
-        fillcolor=color if "FILLED" in options else "rgba(255, 255, 255, 0)",
+        line=dict(color=color, width=line_width),
+        fillcolor=fillcolor
     )
-    fig.show()  # Refresh the plot
+    fig.show()
+
+
 def create_line(x1, y1, x2, y2, color, options):
     fig.add_shape(
         type="line",
@@ -263,20 +291,6 @@ import plotly.graph_objects as go
 # Assuming fig is a global variable or you can initialize it as needed
 fig = go.Figure()
 
-def create_rectangle(x1, x2, y1, y2, color, options):
-    """Create a rectangle shape in the Plotly figure."""
-    fig.add_shape(
-        type="rect",
-        x0=float(x1),
-        x1=float(x2),
-        y0=float(y1),
-        y1=float(y2),
-        line=dict(color=color),
-        fillcolor=color if "FILLED" in options else "rgba(255, 255, 255, 0)",
-    )
-    fig.show()
-
-
 
 
 import http.server
@@ -344,49 +358,68 @@ def process_zigglescript(commands, project_name):
     errors = []
     for command in commands:
         try:
-            # Remove the '<>' if present at the end (already split on <> so should be clean)
             command = command.strip()
             print(f"Processing ZiggleScript command: {command}")
             
-            # Load command definitions from JSON file as before...
+            # Load command definitions from JSON
             json_path = get_json_path()
             with open(json_path, 'r') as json_file:
                 command_data = json.load(json_file)
                 command_definitions = command_data['commands']
                 
             command_parts = command.split()
-            command_name = " ".join(command_parts[:2])
+            command_name = " ".join(command_parts[:2])  # Get the command name
 
             if command_name not in command_definitions:
                 raise ValueError(f"Unknown command: {command_name}")
 
-            # Process parameters as before...
             cmd_def = command_definitions[command_name]
-            params_end = -2 if "OPTIONS" in command_parts else len(command_parts)
-            parameters = command_parts[2:params_end]
-            options = set()
+            parameters = command_parts[2:]  # Get parameters after command name
+            
+            if command_name == "CREATE TEXT":
+                # Extract coordinates and the optional color and font size
+                x1, x2, y1, y2 = map(float, parameters[:4])
+                
+                # Extract the text content
+                text_start = command.index('"')
+                text_end = command.rindex('"')
+                text = command[text_start + 1:text_end]
+                
+                # Extract color (default to 'black') and font size (default to a specific size)
+                color = parameters[-2] if len(parameters) > 5 else "black"
+                font_size = int(parameters[-1]) if len(parameters) > 6 else 12  # Default font size
 
-            # Handle options if present...
-            if "OPTIONS" in command_parts:
-                options_index = command_parts.index("OPTIONS")
-                options_str = " ".join(command_parts[options_index + 1:])
-                if options_str.startswith("{") and options_str.endswith("}"):
-                    options = set(options_str[1:-1].split())
+                # Call create_text directly with the font size
+                create_text(x1, x2, y1, y2, text, color.strip('"'), font_size)
 
-            # Convert parameters
-            converted_params = []
-            for i, param in enumerate(parameters):
-                param_def = cmd_def['parameters'][i]
-                if param_def['type'] == 'float':
-                    converted_params.append(float(param))
-                else:
-                    converted_params.append(param)
 
-            # Call the function
-            if cmd_def['function'] == 'create_rectangle':
-                create_rectangle(*converted_params, options)
-            elif cmd_def['function'] == 'create_line':
-                create_line(*converted_params, options)
+            else:
+                # Handle other commands (like CREATE RECTANGLE, CREATE LINE)
+                params_end = -2 if "OPTIONS" in command_parts else len(command_parts)
+                parameters = command_parts[2:params_end]
+                options = set()
+
+                # Handle options if present
+                if "OPTIONS" in command_parts:
+                    options_index = command_parts.index("OPTIONS")
+                    options_str = " ".join(command_parts[options_index + 1:])
+                    if options_str.startswith("{") and options_str.endswith("}"):
+                        options = set(options_str[1:-1].split())
+
+                # Convert parameters
+                converted_params = []
+                for i, param in enumerate(parameters):
+                    param_def = cmd_def['parameters'][i]
+                    if param_def['type'] == 'float':
+                        converted_params.append(float(param))
+                    else:
+                        converted_params.append(param)
+
+                # Call the function for other commands
+                if cmd_def['function'] == 'create_rectangle':
+                    create_rectangle(*converted_params, options)
+                elif cmd_def['function'] == 'create_line':
+                    create_line(*converted_params, options)
 
             # Save the command after successful execution
             save_command(command, project_name)
@@ -399,6 +432,7 @@ def process_zigglescript(commands, project_name):
         messagebox.showerror("Execution Errors", "\n".join(errors))
     else:
         messagebox.showinfo("Success", "All commands executed successfully!")
+
 
 # CREATE RECTANGLE 2 3 1 4 BROWN<>CREATE RECTANGLE 1 4 4 5 GREEN<>CREATE LINE 2.5 5 2 6 GREEN<>CREATE LINE 2.5 5 3 6 GREEN<>
 

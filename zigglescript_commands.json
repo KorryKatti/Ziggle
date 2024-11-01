@@ -1,62 +1,37 @@
 {
-    "commands": {
-      "CREATE RECTANGLE": {
-        "parameters": [
-          {
-            "name": "x1",
-            "type": "float"
-          },
-          {
-            "name": "y1",
-            "type": "float"
-          },
-          {
-            "name": "x2",
-            "type": "float"
-          },
-          {
-            "name": "y2",
-            "type": "float"
-          },
-          {
-            "name": "color",
-            "type": "string"
-          },
-          {
-            "name": "options",
-            "type": "string"
-          }
-        ],
-        "function": "create_rectangle"
-      },
-      "CREATE LINE": {
-        "parameters": [
-          {
-            "name": "x1",
-            "type": "float"
-          },
-          {
-            "name": "y1",
-            "type": "float"
-          },
-          {
-            "name": "x2",
-            "type": "float"
-          },
-          {
-            "name": "y2",
-            "type": "float"
-          },
-          {
-            "name": "color",
-            "type": "string"
-          },
-          {
-            "name": "options",
-            "type": "string"
-          }
-        ],
-        "function": "create_line"
-      }
+  "commands": {
+    "CREATE RECTANGLE": {
+      "parameters": [
+        {"name": "x1", "type": "float"},
+        {"name": "y1", "type": "float"},
+        {"name": "x2", "type": "float"},
+        {"name": "y2", "type": "float"},
+        {"name": "color", "type": "string"},
+        {"name": "options", "type": "string"}
+      ],
+      "function": "create_rectangle"
+    },
+    "CREATE LINE": {
+      "parameters": [
+        {"name": "x1", "type": "float"},
+        {"name": "y1", "type": "float"},
+        {"name": "x2", "type": "float"},
+        {"name": "y2", "type": "float"},
+        {"name": "color", "type": "string"},
+        {"name": "options", "type": "string"}
+      ],
+      "function": "create_line"
+    },
+    "CREATE TEXT": {
+      "parameters": [
+        {"name": "x1", "type": "float"},
+        {"name": "y1", "type": "float"},
+        {"name": "x2", "type": "float"},
+        {"name": "y2", "type": "float"},
+        {"name": "text", "type": "string"},
+        {"name": "color", "type": "string"}
+      ],
+      "function": "create_text"
     }
   }
+}
