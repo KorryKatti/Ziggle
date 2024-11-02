@@ -1,8 +1,11 @@
 # ZiggleScript Documentation
+=====================================
 
 ZiggleScript is a simple command-based scripting language for creating graphical shapes and text on a coordinate system.
 
+
 ## Available Commands
+----------------------
 
 ### 1. Create Rectangle
 
@@ -23,7 +26,17 @@ ZiggleScript is a simple command-based scripting language for creating graphical
     *   `color`: Color string.
 *   **Example**: `CREATE LINE 10 60 90 60 black<>`
 
-### 3. Create Text
+### 3. Create Circle
+
+*   **Syntax**: `CREATE CIRCLE x y radius color options<>`
+*   **Parameters**:
+    *   `x`, `y`: Center coordinates (float).
+    *   `radius`: Circle radius (float).
+    *   `color`: Color string.
+    *   `options`: Optional; "FILLED" for filled circles.
+*   **Example**: `CREATE CIRCLE 50 50 20 red FILLED<>`
+
+### 4. Create Text
 
 *   **Syntax**: `CREATE TEXT x1 x2 y1 y2 "text" color font_size<>`
 *   **Parameters**:
@@ -34,18 +47,20 @@ ZiggleScript is a simple command-based scripting language for creating graphical
     *   `font_size`: Optional integer for font size adjustment.
 *   **Example**: `CREATE TEXT 20 80 50 50 "Welcome To Ziggle" darkblue 20<>`
 
+
 ## Usage Notes
+----------------
 
 *   Commands must end with `< >`.
 *   Color values can be common names (e.g., "red") or hex codes.
 *   Multiple commands can be combined in one line.
 
-## Example Usage
 
-```sql
+## Example Usage
+-----------------
+
+```zigglescript
 CREATE RECTANGLE 10 90 10 60 lightblue FILLED<> 
 CREATE LINE 10 60 90 60 black<> 
+CREATE CIRCLE 50 50 20 red FILLED<> 
 CREATE TEXT 20 80 50 50 "Hello World" darkblue 20<>
-Contributing and Support
-```
-Contribute to ZiggleScript's growth by sharing designs, reporting issues or suggesting enhancements.

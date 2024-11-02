@@ -1,37 +1,20 @@
 {
   "commands": {
-    "CREATE RECTANGLE": {
-      "parameters": [
-        {"name": "x1", "type": "float"},
-        {"name": "y1", "type": "float"},
-        {"name": "x2", "type": "float"},
-        {"name": "y2", "type": "float"},
-        {"name": "color", "type": "string"},
-        {"name": "options", "type": "string"}
-      ],
-      "function": "create_rectangle"
-    },
-    "CREATE LINE": {
-      "parameters": [
-        {"name": "x1", "type": "float"},
-        {"name": "y1", "type": "float"},
-        {"name": "x2", "type": "float"},
-        {"name": "y2", "type": "float"},
-        {"name": "color", "type": "string"},
-        {"name": "options", "type": "string"}
-      ],
-      "function": "create_line"
+    "CREATE CIRCLE": {
+      "par": ["x", "y", "radius", "color", "options"],
+      "description": "Draw a circle"
     },
     "CREATE TEXT": {
-      "parameters": [
-        {"name": "x1", "type": "float"},
-        {"name": "y1", "type": "float"},
-        {"name": "x2", "type": "float"},
-        {"name": "y2", "type": "float"},
-        {"name": "text", "type": "string"},
-        {"name": "color", "type": "string"}
-      ],
-      "function": "create_text"
+      "par": ["x1", "x2", "y1", "y2", "text", "color", "font_size"],
+      "description": "Draw text"
+    },
+    "CREATE RECTANGLE": {
+      "par": ["x1", "x2", "y1", "y2", "color", "options"],
+      "description": "Draw a rectangle"
+    },
+    "CREATE LINE": {
+      "par": ["x1", "y1", "x2", "y2", "color"],
+      "description": "Draw a line"
     }
   }
 }
