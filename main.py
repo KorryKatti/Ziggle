@@ -80,6 +80,9 @@ from tkinter import Text, Button
 # Global Plotly figure instance
 fig = go.Figure()
 
+# print a hello world
+
+
 # Config for Plotly interactive grid
 config = {
     'scrollZoom': True,
