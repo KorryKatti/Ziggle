@@ -18,58 +18,111 @@ height = 0
 undo_stack = []
 redo_stack = []
 
-def get_json_path():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(script_dir, 'zigglescript_commands.json')
+class GraphPlot:
+    def __init__(self, root, project_name, project_id, width_val, height_val):
+        self.root = root
+        self.project_name = project_name
+        self.project_id = project_id
+        self.width_val = width_val
+        self.height_val = height_val
 
-def create_graph(root, project_name, project_id, width_val, height_val):
-    global width, height, fig, ax
-    width = width_val
-    height = height_val
+        self.create_graph()
 
-    for widget in root.winfo_children():
-        widget.destroy()
+    def create_graph(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
 
-    create_command_buttons(root)
+        create_command_buttons(self.root)
 
-    input_frame = tk.Frame(root)
-    input_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        input_frame = tk.Frame(self.root)
+        input_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-    global fig, ax
-    fig, ax = plt.subplots(figsize=(8, 8), dpi=100)
+        global fig, ax
+        fig, ax = plt.subplots(figsize=(8, 8), dpi=100)
 
-    canvas = FigureCanvasTkAgg(fig, master=root)
-    canvas.draw()
-    canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        canvas = FigureCanvasTkAgg(fig, master=self.root)
+        canvas.draw()
+        canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-    ax.grid(True)
-    ax.set_xlim(0, width)
-    ax.set_ylim(0, height)
+        ax.grid(True)
+        ax.set_xlim(0, self.width_val)
+        ax.set_ylim(0, self.height_val)
 
-    ax.set_aspect('equal')
+        ax.set_aspect('equal')
 
-    input_frame = tk.Frame(root)
-    input_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        self.cidpress = canvas.mpl_connect('button_press_event', self.on_press)
+        self.cidrelease = canvas.mpl_connect('button_release_event', self.on_release)
+        self.cidmotion = canvas.mpl_connect('motion_notify_event', self.on_motion)
 
-    global command_input
-    command_input = tk.Text(input_frame, height=5, wrap="word")
-    command_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+        input_frame = tk.Frame(self.root)
+        input_frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-    execute_button = tk.Button(input_frame, text="Execute", command=submit_command)
-    execute_button.pack(side=tk.RIGHT, padx=5, pady=5)
+        global command_input
+        command_input = tk.Text(input_frame, height=5, wrap="word")
+        command_input.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
 
-    undo_button = tk.Button(input_frame, text="Undo", command=undo_last_command)
-    undo_button.pack(side=tk.RIGHT, padx=5, pady=5)
+        execute_button = tk.Button(input_frame, text="Execute", command=submit_command)
+        execute_button.pack(side=tk.RIGHT, padx=5, pady=5)
 
-    redo_button = tk.Button(input_frame, text="Redo", command=redo_last_command)
-    redo_button.pack(side=tk.RIGHT, padx=5, pady=5)
+        undo_button = tk.Button(input_frame, text="Undo", command=undo_last_command)
+        undo_button.pack(side=tk.RIGHT, padx=5, pady=5)
 
+        redo_button = tk.Button(input_frame, text="Redo", command=redo_last_command)
+        redo_button.pack(side=tk.RIGHT, padx=5, pady=5)
+
+        center_button = tk.Button(input_frame, text="Center", command=self.center_view)
+        center_button.pack(side=tk.RIGHT, padx=5, pady=5)
+
+        self.x0 = None
+        self.y0 = None
+        self.xCenter = None
+        self.yCenter = None
+        self.xWidth = None
+        self.yHeight = None
+
+    def on_press(self, event):
+        if event.button == 1:  # left mouse button
+            self.x0 = event.xdata
+            self.y0 = event.ydata
+        elif event.button == 3:  # right mouse button
+            self.xCenter = (ax.get_xlim()[0] + ax.get_xlim()[1]) / 2
+            self.yCenter = (ax.get_ylim()[0] + ax.get_ylim()[1]) / 2
+            self.xWidth = ax.get_xlim()[1] - ax.get_xlim()[0]
+            self.yHeight = ax.get_ylim()[1] - ax.get_ylim()[0]
+
+    def on_motion(self, event):
+        if self.x0 is not None and self.y0 is not None:
+            dx = event.xdata - self.x0
+            dy = event.ydata - self.y0
+            ax.set_xlim(ax.get_xlim()[0] - dx, ax.get_xlim()[1] - dx)
+            ax.set_ylim(ax.get_ylim()[0] - dy, ax.get_ylim()[1] - dy)
+            fig.canvas.draw_idle()
+            self.x0 = event.xdata
+            self.y0 = event.ydata
+
+    def on_release(self, event):
+        if event.button == 3:  # right mouse button
+            xLim = ax.get_xlim()
+            yLim = ax.get_ylim()
+            ax.set_xlim(self.xCenter - self.xWidth / 2 * 0.9, self.xCenter + self.xWidth / 2 * 0.9)
+            ax.set_ylim(self.yCenter - self.yHeight / 2 * 0.9, self.yCenter + self.yHeight / 2 * 0.9)
+            fig.canvas.draw_idle()
+        self.x0 = None
+        self.y0 = None
+
+    def center_view(self):
+        ax.set_xlim(0, self.width_val)
+        ax.set_ylim(0, self.height_val)
+        fig.canvas.draw_idle()
+
+
+import matplotlib.pyplot as plt
 
 def create_text(x1, x2, y1, y2, text, color, font_size):
     x_pos = (x1 + x2) / 2
     y_pos = (y1 + y2) / 2
 
-    ax.text(x_pos, y_pos, text, ha='center', va='center', color=color, fontsize=font_size)
+    plt.text(x_pos, y_pos, text, ha='center', va='center', color=color, fontsize=font_size)
 
 
 def create_rectangle(x1, x2, y1, y2, color, filled=False):
@@ -220,49 +273,10 @@ def create_command_buttons(root):
     tk.Button(command_frame, text="CREATE TEXT", 
             command=lambda: command_input.insert(tk.END, 'CREATE TEXT x1 x2 y1 y2 "text" color font_size<>')).pack(side=tk.LEFT)
 
-    tk.Button(command_frame, text="Zoom In", 
-              command=lambda: zoom(1.1)).pack(side=tk.LEFT)
 
-    tk.Button(command_frame, text="Zoom Out", 
-              command=lambda: zoom(0.9)).pack(side=tk.LEFT)
-
-    tk.Button(command_frame, text="Pan Up", 
-              command=lambda: pan(0, 10)).pack(side=tk.LEFT)
-
-    tk.Button(command_frame, text="Pan Down", 
-              command=lambda: pan(0, -10)).pack(side=tk.LEFT)
-
-    tk.Button(command_frame, text="Pan Left", 
-              command=lambda: pan(-10, 0)).pack(side=tk.LEFT)
-
-    tk.Button(command_frame, text="Pan Right", 
-              command=lambda: pan(10, 0)).pack(side=tk.LEFT)
-
-
-def zoom(scale_factor):
-    global ax
-    xLim = ax.get_xlim()
-    yLim = ax.get_ylim()
-    xCenter = (xLim[0] + xLim[1]) / 2
-    yCenter = (yLim[0] + yLim[1]) / 2
-    xWidth = (xLim[1] - xLim[0]) * scale_factor
-    yHeight = (yLim[1] - yLim[0]) * scale_factor
-    ax.set_xlim(xCenter - xWidth / 2, xCenter + xWidth / 2)
-    ax.set_ylim(yCenter - yHeight / 2, yCenter + yHeight / 2)
-    fig.canvas.draw_idle()
-
-
-def pan(dx, dy):
-    global ax
-    xLim = ax.get_xlim()
-    yLim = ax.get_ylim()
-    xCenter = (xLim[0] + xLim[1]) / 2 + dx
-    yCenter = (yLim[0] + yLim[1]) / 2 + dy
-    xWidth = xLim[1] - xLim[0]
-    yHeight = yLim[1] - yLim[0]
-    ax.set_xlim(xCenter - xWidth / 2, xCenter + xWidth / 2)
-    ax.set_ylim(yCenter - yHeight / 2, yCenter + yHeight / 2)
-    fig.canvas.draw_idle()
+def get_json_path():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(script_dir, 'zigglescript_commands.json')
 
 
 def ask_for_project_details(root):
@@ -320,7 +334,7 @@ def ask_for_project_details(root):
         messagebox.showinfo("Project Created", f"Project '{filename}' created successfully!")
         dialog.destroy()
         
-        create_graph(root, filename, project_id, width_val, height_val)
+        project = GraphPlot(root, filename, project_id, width_val, height_val)
 
     ttk.Button(dialog, text="Submit", command=on_submit).grid(row=3, columnspan=2, pady=10)
 
