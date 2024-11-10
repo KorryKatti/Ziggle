@@ -27,6 +27,7 @@ def get_json_path():
     return os.path.join(script_dir, 'zigglescript_commands.json')
 
 undo_stack = []
+redo_stack = []
 
 def create_graph(root, project_name, project_id, width, height):
     """Create a grid-based interactive Plotly graph."""
@@ -81,6 +82,10 @@ def create_graph(root, project_name, project_id, width, height):
     undo_button = tk.Button(input_frame, text="Undo", command=undo_last_command)
     undo_button.pack(side=tk.RIGHT, padx=5, pady=5)
 
+    redo_button = tk.Button(input_frame, text="Redo", command=redo_last_command)
+    redo_button.pack(side=tk.RIGHT, padx=5, pady=5)
+
+
 def submit_command():
     """Execute the ZiggleScript command entered by the user."""
     command = command_input.get("1.0", tk.END).strip()
@@ -90,6 +95,7 @@ def submit_command():
             command_input.delete("1.0", tk.END)
         except Exception as e:
             messagebox.showerror("Error", f"Failed to process command: {str(e)}")
+
 
 def create_text(x1, x2, y1, y2, text, color, font_size):
     x_pos = (x1 + x2) / 2
@@ -109,6 +115,7 @@ def create_text(x1, x2, y1, y2, text, color, font_size):
     )
     fig.show()
 
+
 def create_circle(x, y, radius, color, filled=False):
     fig.add_shape(
         type="circle",
@@ -126,6 +133,7 @@ def create_circle(x, y, radius, color, filled=False):
     )
     fig.show()
 
+
 def create_rectangle(x1, x2, y1, y2, color, filled=False):
     fillcolor = color if filled else "rgba(255, 255, 255, 0)"
     line_width = 2 if filled else 1
@@ -140,6 +148,7 @@ def create_rectangle(x1, x2, y1, y2, color, filled=False):
     )
     fig.show()
 
+
 def create_line(x1, y1, x2, y2, color):
     fig.add_shape(
         type="line",
@@ -150,6 +159,7 @@ def create_line(x1, y1, x2, y2, color):
         line=dict(color=color, width=2)
     )
     fig.show()
+
 
 def ensure_project_directory():
     """Ensure the main project directory exists and an index file is initialized."""
@@ -162,6 +172,7 @@ def ensure_project_directory():
             json.dump([], index_file)
 
     return index_path
+
 
 def ask_for_project_details(root):
     dialog = tk.Toplevel(root)
@@ -220,9 +231,15 @@ def ask_for_project_details(root):
 
     ttk.Button(dialog, text="Submit", command=on_submit).grid(row=3, columnspan=2, pady=10)
 
+
 def process_zigglescript(command):
     """Process a single ZiggleScript command."""
+    global redo_stack
+    redo_stack = []
+    
     try:
+        command = command.strip("<>")  # Remove <> syntax
+        
         command_parts = command.split()
         command_name = " ".join(command_parts[:2])
 
@@ -239,20 +256,20 @@ def process_zigglescript(command):
         parameters = command_parts[2:]
 
         if command_name == "CREATE TEXT":
-            parameters = [param.strip('"<').strip('">') for param in parameters]
-            if len(parameters) < 6:
-                raise ValueError("Invalid number of parameters for CREATE TEXT")
-            x1, x2, y1, y2, text, color, *options = parameters
-            font_size = options[0] if options else 12  # Default font size
-            create_text(float(x1), float(x2), float(y1), float(y2), text.strip('"'), color, int(font_size))
+            params = parameters
+            x1, x2, y1, y2 = params[:4]  # Coordinates
+            text = ' '.join(params[4:-2]).strip('"')  # Text without quotes
+            color = params[-2]
+            font_size = params[-1]
+            create_text(float(x1), float(x2), float(y1), float(y2), text, color, int(font_size))
 
         elif command_name == "CREATE RECTANGLE":
             x1, x2, y1, y2, color, *options = parameters
             filled = "FILLED" in options
-            create_rectangle(x1, x2, y1, y2, color.strip('"'), filled)
+            create_rectangle(float(x1), float(x2), float(y1), float(y2), color.strip('"'), filled)
 
         elif command_name == "CREATE LINE":
-            parameters = [param.strip("<>").strip('"') for param in parameters]
+            parameters = [param.strip('"') for param in parameters]
             x1, y1, x2, y2, color = parameters
             create_line(float(x1), float(y1), float(x2), float(y2), color)
 
@@ -265,11 +282,65 @@ def process_zigglescript(command):
             pass
 
         # Add the executed command to the undo stack
-        undo_stack.append(command)
+        undo_stack.append({
+            'command': command_name,
+            'parameters': parameters
+        })
 
     except Exception as e:
         raise Exception(f"Failed to process command: {str(e)}")
-    
+
+def undo_last_command():
+    global undo_stack, redo_stack, fig
+    if undo_stack:
+        last_command = undo_stack.pop()
+        redo_stack.append(last_command)
+        command_name = last_command['command']
+        parameters = last_command['parameters']
+
+        try:
+            # Reverse the last command's effects
+            if command_name == "CREATE TEXT":
+                fig.update_layout(annotations=[a for a in fig['layout']['annotations'] if a['text'] != parameters[4]])
+            elif command_name == "CREATE RECTANGLE":
+                fig.update_layout(shapes=[s for s in fig['layout']['shapes'] if (s['x0'], s['x1'], s['y0'], s['y1']) != (float(parameters[0]), float(parameters[1]), float(parameters[2]), float(parameters[3]))])
+            elif command_name == "CREATE LINE":
+                fig.update_layout(shapes=[s for s in fig['layout']['shapes'] if (s['x0'], s['y0'], s['x1'], s['y1']) != (float(parameters[0]), float(parameters[1]), float(parameters[2]), float(parameters[3]))])
+            elif command_name == "CREATE CIRCLE":
+                fig.update_layout(shapes=[s for s in fig['layout']['shapes'] if (s['x0'], s['y0'], s['x1'], s['y1']) != (float(parameters[0]) - float(parameters[2]), float(parameters[1]) - float(parameters[2]), float(parameters[0]) + float(parameters[2]), float(parameters[1]) + float(parameters[2]))])
+
+            # Update plot
+            fig.show()
+
+        except Exception as e:
+            messagebox.showerror("Undo Error", f"Failed to undo command: {str(e)}")
+
+
+def redo_last_command():
+    global undo_stack, redo_stack, fig
+    if redo_stack:
+        last_command = redo_stack.pop()
+        undo_stack.append(last_command)
+        command_name = last_command['command']
+        parameters = last_command['parameters']
+
+        try:
+            # Reapply the last undone command's effects
+            if command_name == "CREATE TEXT":
+                create_text(float(parameters[0]), float(parameters[1]), float(parameters[2]), float(parameters[3]), parameters[4], parameters[5], int(parameters[6]))
+            elif command_name == "CREATE RECTANGLE":
+                create_rectangle(parameters[0], parameters[1], parameters[2], parameters[3], parameters[4], "FILLED" in parameters)
+            elif command_name == "CREATE LINE":
+                create_line(float(parameters[0]), float(parameters[1]), float(parameters[2]), float(parameters[3]), parameters[4])
+            elif command_name == "CREATE CIRCLE":
+                create_circle(float(parameters[0]), float(parameters[1]), float(parameters[2]), parameters[3], "FILLED" in parameters)
+
+            # Update plot
+            fig.show()
+
+        except Exception as e:
+            messagebox.showerror("Redo Error", f"Failed to redo command: {str(e)}")
+
 
 def create_command_buttons(root):
     command_frame = tk.Frame(root)
@@ -290,15 +361,6 @@ def create_command_buttons(root):
     tk.Button(command_frame, text="CREATE TEXT", 
             command=lambda: command_input.insert(tk.END, 'CREATE TEXT x1 x2 y1 y2 "text" color font_size')).pack(side=tk.LEFT)
 
-def undo_last_command():
-    """Undo the last executed ZiggleScript command."""
-    if undo_stack:
-        last_command = undo_stack.pop()
-        try:
-            # Reverse the last command's effects
-            process_zigglescript(last_command)
-        except Exception as e:
-            messagebox.showerror("Undo Error", f"Failed to undo command: {str(e)}")
 
 if __name__ == "__main__":
     root = tk.Tk()
