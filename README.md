@@ -1,66 +1,116 @@
-# ZiggleScript Documentation
+# Ziggle: 2D Drawing Tool
 =====================================
 
-ZiggleScript is a simple command-based scripting language for creating graphical shapes and text on a coordinate system.
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?style=for-the-badge&logo=github)](https://github.com/KorryKatti/Ziggle)
 
+## ⚠️ Project Status: Early Development
 
-## Available Commands
-----------------------
+### 🚨 Important Warnings
+- **UNSTABLE RELEASE**: Ziggle is in very early stages of development
+- **NOT RECOMMENDED FOR CRITICAL WORK**
+- Expect frequent changes, potential data loss, and unexpected behaviors
+- **Academic/Professional Use: NOT ADVISED**
 
-### 1. Create Rectangle
+### 🛠 Current Limitations
+- Experimental features
+- Potential bugs and incomplete functionality
+- No guaranteed data preservation
+- Limited testing and validation
 
-*   **Syntax**: `CREATE RECTANGLE x1 x2 y1 y2 color options<>`
-*   **Parameters**:
-    *   `x1`, `x2`: Horizontal coordinates (float) defining the left and right edges.
-    *   `y1`, `y2`: Vertical coordinates (float) defining the bottom and top edges.
-    *   `color`: Color string (e.g., "lightblue").
-    *   `options`: Optional; "FILLED" for filled rectangles.
-*   **Example**: `CREATE RECTANGLE 10 90 10 60 lightblue FILLED<>`
+## 🚀 Version 0.1.0 - First Release
 
-### 2. Create Line
+### 🌟 Key Features
 
-*   **Syntax**: `CREATE LINE x1 y1 x2 y2 color<>`
-*   **Parameters**:
-    *   `x1`, `y1`: Starting coordinates (float).
-    *   `x2`, `y2`: Ending coordinates (float).
-    *   `color`: Color string.
-*   **Example**: `CREATE LINE 10 60 90 60 black<>`
+#### Drawing Tools
+- **Shape Drawing**: Create precise 2D shapes
+  - Rectangle
+  - Line
+  - Circle
+  - Text
 
-### 3. Create Circle
+#### Project Management
+- Custom canvas dimensions
+- Project saving and loading
+- Export project as PNG
 
-*   **Syntax**: `CREATE CIRCLE x y radius color options<>`
-*   **Parameters**:
-    *   `x`, `y`: Center coordinates (float).
-    *   `radius`: Circle radius (float).
-    *   `color`: Color string.
-    *   `options`: Optional; "FILLED" for filled circles.
-*   **Example**: `CREATE CIRCLE 50 50 20 red FILLED<>`
+#### User Interface
+- Modern, intuitive design
+- Sidebar for project management
+- Color palette
+- Zoom and pan functionality
 
-### 4. Create Text
+### 🎨 Drawing Capabilities
 
-*   **Syntax**: `CREATE TEXT x1 x2 y1 y2 "text" color font_size<>`
-*   **Parameters**:
-    *   `x1`, `x2`: Horizontal coordinates (float) defining the text area.
-    *   `y1`, `y2`: Vertical coordinates (float) defining the text area.
-    *   `"text"`: Displayed text string (enclosed in quotes).
-    *   `color`: Optional color string (default: "black").
-    *   `font_size`: Optional integer for font size adjustment.
-*   **Example**: `CREATE TEXT 20 80 50 50 "Welcome To Ziggle" darkblue 20<>`
+#### Shapes
+- Draw rectangles, lines, and circles with color selection
+- Precise placement with real-time preview
+- Supports drawing in any direction
 
+#### Text Tool
+- Configurable text input
+- Font size selection
+- Easy placement on canvas
 
-## Usage Notes
-----------------
+#### Canvas Management
+- Custom canvas size (e.g., 300x300)
+- Zoom restrictions within canvas boundaries
+- Smooth zoom interaction centered on mouse cursor
 
-*   Commands must end with `< >`.
-*   Color values can be common names (e.g., "red") or hex codes.
-*   Multiple commands can be combined in one line.
+### 🛠 Undo/Redo Functionality
+- Step-by-step undo and redo
+- Preserves drawing order
+- Supports all drawing actions
 
+### 📦 Dependencies
+- Python 3.8+
+- Tkinter
+- Matplotlib
+- UUID
 
-## Example Usage
------------------
+### 🚀 Getting Started
 
-```zigglescript
-CREATE RECTANGLE 10 90 10 60 lightblue FILLED<> 
-CREATE LINE 10 60 90 60 black<> 
-CREATE CIRCLE 50 50 20 red FILLED<> 
-CREATE TEXT 20 80 50 50 "Hello World" darkblue 20<>
+#### Installation
+```bash
+git clone https://github.com/KorryKatti/Ziggle.git
+cd Ziggle
+pip install -r requirements.txt
+python main.py
+```
+
+#### Quick Start
+1. Launch the application
+2. Create a new project
+3. Specify canvas dimensions
+4. Start drawing!
+
+### 🔜 Upcoming Features
+- 🚧 ZiggleScript Support (Command-based Drawing Language)
+  - Planned for future releases
+  - Will provide scripting capabilities for shape creation
+- Layer support
+- Advanced shape manipulation
+- More drawing tools
+- Collaborative editing
+
+### 🤝 Contributing
+- Contributions are welcome!
+- **Please be aware of the project's early-stage status**
+- Report issues and suggest improvements on GitHub
+
+### 📄 License
+MIT License
+
+### 🌐 Future Plans
+- **Part of Thunder App Store**
+  - Ziggle will be integrated into the [Thunder App Store](https://github.com/KorryKatti/Thunder)
+  - Currently under development
+  - Planned as a native application within the Thunder ecosystem
+
+### 📧 Contact
+- Project maintained by [KorryKatti](https://github.com/KorryKatti)
+
+---
+
+**Disclaimer: Use at Your Own Risk! 🚧🛠️**
+
+**Happy Experimental Drawing with Ziggle! 🎨✏️**
